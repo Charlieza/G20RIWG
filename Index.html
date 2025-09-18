@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Urban Flood & Growth Intelligence Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+  /* ==== Dark Futuristic Theme (colors only; structure unchanged) ==== */
+  :root{
+    --ink:#e5e7eb;          /* primary text */
+    --muted:#94a3b8;        /* secondary text */
+    --bg:#0b1220;           /* page background */
+    --card:#0f172a;         /* cards, tables, panels */
+    --card-2:#111827;       /* header/footer blocks */
+    --border:#1f2a44;       /* subtle borders */
+    --hover:#0e1a33;        /* row hover */
+    --pill:#142447;         /* pill chips */
+    --btn:#1d4ed8;          /* button base */
+    --btn-text:#e8eefc;
+    --input:#0e1730;        /* inputs */
+    --input-b:#2b3a6b;
+    --hi:#ff3d81;           /* risk high (neon pink) */
+    --med:#f59e0b;          /* risk med (amber) */
+    --lo:#22d3ee;           /* risk low (cyan) */
+  }
+
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+
+  header{
+    padding:28px 36px;
+    background: linear-gradient(135deg,#0f172a 0%,#0b1220 60%,#0a1020 100%);
+    box-shadow:0 2px 12px rgba(0,0,0,.35);
+    position:sticky;top:0;z-index:9;
+    display:flex;align-items:center;gap:24px;flex-wrap:wrap;
+  }
+
+  /* Logo box (white background, top-left) */
+  .brand{
+    display:flex;gap:8px;align-items:center;
+    background:#ffffff;border-radius:12px;padding:6px 10px;
+    box-shadow:0 2px 8px rgba(0,0,0,.25)
+  }
+  .brand img{height:60px;width:auto;display:block}
+
+  h1{
+    margin: 0;
+    color: var(--ink);
+    font-size: 32px;     /* bigger title */
+    letter-spacing: .3px;
+  }
+  .meta{
+    color: var(--muted);
+    font-size: 16px;     /* larger subtitle text */
+    width: 100%;
+  }
+
+  .container{padding:18px 24px}
+
+  .toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:12px 0 18px}
+  .pill{background:var(--pill);color:#c7d2fe;border:1px solid var(--border);border-radius:999px;padding:4px 10px;font-size:12px}
+  .btn{background:var(--btn);color:var(--btn-text);padding:8px 12px;border-radius:8px;text-decoration:none;border:1px solid #2a4de0;box-shadow:0 0 12px rgba(37,99,235,.35)}
+  .btn:visited{color:var(--btn-text)}
+  input[type="number"]{
+    width:90px;padding:6px 8px;background:var(--input);color:var(--ink);
+    border:1px solid var(--input-b);border-radius:8px;outline:none
+  }
+
+  table{border-collapse:collapse;width:100%;background:var(--card);border-radius:12px;overflow:hidden;box-shadow:0 1px 10px rgba(0,0,0,.25)}
+  th,td{padding:10px;border-bottom:1px solid var(--border);font-size:14px}
+  th{background:#0c1a35;text-align:left;color:#c7d2fe;cursor:pointer;user-select:none;border-bottom:1px solid var(--border)}
+  tr:hover td{background:var(--hover)}
+  .right{text-align:right}
+  
+  /* Make the first column (City) white + bold, and force its link to be white */
+  #summary td:first-child{
+    color:#fff;
+    font-weight:700;
+  }
+  #summary td:first-child a{
+    color:#fff;
+    text-decoration:none;
+  }
+  #summary td:first-child a:hover{
+    text-decoration:underline;
+  }
+
+  .badge{padding:2px 8px;border-radius:999px;font-size:12px;color:#0b1220;font-weight:700}
+  .b-hi{background:var(--hi)} .b-med{background:var(--med)} .b-lo{background:var(--lo);color:#062028}
+
+  .city{margin-top:18px}
+  details summary{cursor:pointer;font-weight:600;color:#e2e8f0;margin:8px 0}
+  .row-title{margin:16px 0 8px;font-weight:700;color:#e2e8f0}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px;box-shadow:0 1px 6px rgba(0,0,0,.25)}
+  figure{margin:0}
+  figcaption{margin-top:6px;color:#a5b4fc;font-size:13px;line-height:1.35}
+  .img,.img--lg{
+    width:100%;object-fit:contain;background:#0a1020;border:1px solid var(--border);border-radius:8px
+  }
+  .img{max-height:360px}
+  .img--lg{max-height:640px}
+
+  .muted{color:var(--muted);font-size:13px}
+  .explain{margin-top:6px;padding:8px 10px;background:#0c1a35;border:1px solid var(--border);border-radius:8px;color:#cbd5e1;font-size:13px}
+
+  .glossary{margin:32px 0 24px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .glossary h2{margin:0 0 10px 0;font-size:18px;color:#e2e8f0}
+  .glossary dl{display:grid;grid-template-columns: 140px 1fr;gap:8px 16px}
+  .glossary dt{font-weight:700;color:#c7d2fe}
+  .glossary dd{margin:0;color:#cbd5e1}
+  .note{font-size:12px;color:#94a3b8;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <!-- White logo box, left -->
+  <div class="brand">
+    <img src="DST-logo.64ea6cc636a6f63c44f4.jpg" alt="DST logo"/>
+    <img src="National_Research_Foundation_logo.png" alt="Project logo"/>
+    <img src="53169061_1617180276000.png" alt="Project logo"/>
+    <img src="tia-logo-1.png" alt="Project logo"/>
+    <img src="CSIR new logo1_0.jpg" alt="Project logo"/>
+    <img src="logo.png" alt="Project logo"/>
+    <img src="01_IAU-OAD_transparent_black-768x768.png" alt="Project logo"/>
+    <img src="G20SA-Logo-2024_HorizFColour.png" alt="Project logo"/>Interactive overview
+  </div>
+
+  <!-- Title with “— Explained” removed -->
+  <h1>Urban Flood & Growth Intelligence Dashboard</h1>
+  <div class="meta">Interactive overview</div>
+</header>
+
+<div class="container">
+  <div class="toolbar">
+    <span class="pill">Filter: High Risk ≥</span>
+    <input type="number" id="hiFilter" min="0" max="100" step="1" value="0"/>
+    <span class="pill">Growth ≥</span>
+    <input type="number" id="grFilter" min="0" max="100" step="0.1" value="0"/>
+    <a class="btn" href="#" id="resetBtn">Reset</a>
+  </div>
+
+  <!-- Summary table -->
+  <table id="summary">
+    <thead>
+      <tr>
+        <th data-k="name">City</th>
+        <th data-k="built_base_pct" class="right">Built-up (base %)</th>
+        <th data-k="built_recent_pct" class="right">Built-up (recent %)</th>
+        <th data-k="growth_pct" class="right">Growth %</th>
+        <th data-k="risk_high_pct" class="right">High Risk %</th>
+        <th data-k="risk_med_pct" class="right">Med Risk %</th>
+        <th data-k="risk_low_pct" class="right">Low Risk %</th>
+        <th data-k="forecast_auc" class="right">Forecast AUC</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- City sections render here -->
+  <div id="cities"></div>
+
+  <!-- Glossary -->
+  <section class="glossary" id="glossary">
+    <h2>Glossary of terms & layers</h2>
+    <dl>
+      <dt>RGB (True Color)</dt><dd>Natural-color Sentinel-2 composite for the event dates; clouds reduced via quality masking.</dd>
+      <dt>NDVI</dt><dd>Normalized Difference Vegetation Index; higher = greener vegetation.</dd>
+      <dt>NDBI</dt><dd>Normalized Difference Built-up Index; higher = stronger built-up signal (roofs, concrete).</dd>
+      <dt>NDWI</dt><dd>Normalized Difference Water Index; highlights open water and wetness.</dd>
+      <dt>MNDWI</dt><dd>Modified NDWI (uses SWIR/Green) to isolate water in urban areas.</dd>
+      <dt>Δ (Delta)</dt><dd>Change between event and baseline composites (event − baseline).</dd>
+      <dt>Flood Extent</dt><dd>Pixels newly classified as water during event (NDWI/MNDWI thresholds) vs baseline.</dd>
+      <dt>Flood Frequency</dt><dd>Fraction of event windows flooded (0–1); proxy for recurring hazard.</dd>
+      <dt>Vulnerability</dt><dd>Composite score: Hazard (frequency) + Exposure (built-up) + Proximity to water.</dd>
+      <dt>Forecast Probability</dt><dd>ML probability of settlement expansion in 1–3 years (higher = more likely growth).</dd>
+      <dt>Risk Classes</dt><dd>Overlay of forecast expansion with flood hazard to stratify Low / Medium / High risk.</dd>
+      <dt>AUC</dt><dd>Area Under ROC Curve; higher = better ML discrimination between change/no-change.</dd>
+    </dl>
+    <div class="note">All layers are qualitative decision aids; local ground truth and agency context should guide action.</div>
+  </section>
+</div>
+
+<script>
+/* ------------------ Data (existing + NEW cities) ------------------ */
+/* NOTE: We keep your structure intact and add Molweni & Moseley Park. */
+const data = [
+  {"slug": "khayelitsha", "name": "Khayelitsha / Enkanini", "base": ["2023-01-05", "2023-02-04"], "recent": ["2024-01-10", "2024-01-25"], "ok": true, "px_total": 560000, "built_base_px": 258493, "built_recent_px": 230501, "growth_px": 38893, "loss_px": 66885, "built_base_pct": 46.159464285714286, "built_recent_pct": 41.160892857142855, "growth_pct": 6.945178571428571, "loss_pct": 11.94375, "forecast_auc": 0.9996657293990108, "risk_low_px": 265900, "risk_med_px": 113472, "risk_high_px": 180628, "risk_low_pct": 47.482142857142854, "risk_med_pct": 20.262857142857143, "risk_high_pct": 32.255, "assets": {"rgb_event": null, "indices_change": null, "flood_extent": null, "flood_frequency": null, "change_panel": "outputs_flood/urban_growth/khayelitsha/change_detection_panel.png", "forecast_prob": "outputs_flood/urban_growth/khayelitsha/forecast_probability.png", "forecast_1yr": "outputs_flood/urban_growth/khayelitsha/forecast_expansion_1yr.png", "forecast_3yr": "outputs_flood/urban_growth/khayelitsha/forecast_expansion_3yr.png", "risk_panel": "outputs_flood/urban_growth/khayelitsha/risk_classification_panel.png", "risk_hist": "outputs_flood/urban_growth/khayelitsha/risk_class_hist.png", "narr": "outputs_flood/urban_growth/khayelitsha/narr_forecast.png"}},
+  {"slug": "durban_quarry_road", "name": "Durban – Quarry Road West", "base": ["2023-05-10", "2023-06-09"], "recent": ["2024-07-01", "2024-07-16"], "ok": true, "px_total": 60000, "built_base_px": 12217, "built_recent_px": 18925, "growth_px": 8199, "loss_px": 1491, "built_base_pct": 20.361666666666668, "built_recent_pct": 31.541666666666668, "growth_pct": 13.665, "loss_pct": 2.485, "forecast_auc": 0.9996969089554439, "risk_low_px": 33735, "risk_med_px": 10806, "risk_high_px": 15459, "risk_low_pct": 56.225, "risk_med_pct": 18.01, "risk_high_pct": 25.765, "assets": {"rgb_event": null, "indices_change": null, "flood_extent": null, "flood_frequency": null, "change_panel": "outputs_flood/urban_growth/durban_quarry_road/change_detection_panel.png", "forecast_prob": "outputs_flood/urban_growth/durban_quarry_road/forecast_probability.png", "forecast_1yr": "outputs_flood/urban_growth/durban_quarry_road/forecast_expansion_1yr.png", "forecast_3yr": "outputs_flood/urban_growth/durban_quarry_road/forecast_expansion_3yr.png", "risk_panel": "outputs_flood/urban_growth/durban_quarry_road/risk_classification_panel.png", "risk_hist": "outputs_flood/urban_growth/durban_quarry_road/risk_class_hist.png", "narr": "outputs_flood/urban_growth/durban_quarry_road/narr_forecast.png"}},
+  {"slug": "nairobi_kibera", "name": "Nairobi – Kibera", "base": ["2023-06-14", "2023-07-14"], "recent": ["2024-01-10", "2024-01-25"], "ok": true, "px_total": 40000, "built_base_px": 0, "built_recent_px": 8596, "growth_px": 8596, "loss_px": 0, "built_base_pct": 0.0, "built_recent_pct": 21.490000000000002, "growth_pct": 21.490000000000002, "loss_pct": 0.0, "forecast_auc": NaN, "risk_low_px": 31402, "risk_med_px": 0, "risk_high_px": 8598, "risk_low_pct": 78.505, "risk_med_pct": 0.0, "risk_high_pct": 21.495, "assets": {"rgb_event": null, "indices_change": null, "flood_extent": null, "flood_frequency": null, "change_panel": "outputs_flood/urban_growth/nairobi_kibera/change_detection_panel.png", "forecast_prob": "outputs_flood/urban_growth/nairobi_kibera/forecast_probability.png", "forecast_1yr": "outputs_flood/urban_growth/nairobi_kibera/forecast_expansion_1yr.png", "forecast_3yr": "outputs_flood/urban_growth/nairobi_kibera/forecast_expansion_3yr.png", "risk_panel": "outputs_flood/urban_growth/nairobi_kibera/risk_classification_panel.png", "risk_hist": "outputs_flood/urban_growth/nairobi_kibera/risk_class_hist.png", "narr": "outputs_flood/urban_growth/nairobi_kibera/narr_forecast.png"}},
+  {"slug": "lagos_makoko", "name": "Lagos – Makoko", "base": ["2023-07-10", "2023-08-09"], "recent": ["2024-01-05", "2024-01-20"], "ok": true, "px_total": 22500, "built_base_px": 2293, "built_recent_px": 8840, "growth_px": 7244, "loss_px": 697, "built_base_pct": 10.19111111111111, "built_recent_pct": 39.28888888888889, "growth_pct": 32.19555555555556, "loss_pct": 3.097777777777778, "forecast_auc": NaN, "risk_low_px": 7038, "risk_med_px": 0, "risk_high_px": 15462, "risk_low_pct": 31.28, "risk_med_pct": 0.0, "risk_high_pct": 68.72, "assets": {"rgb_event": null, "indices_change": null, "flood_extent": null, "flood_frequency": null, "change_panel": "outputs_flood/urban_growth/lagos_makoko/change_detection_panel.png", "forecast_prob": "outputs_flood/urban_growth/lagos_makoko/forecast_probability.png", "forecast_1yr": "outputs_flood/urban_growth/lagos_makoko/forecast_expansion_1yr.png", "forecast_3yr": "outputs_flood/urban_growth/lagos_makoko/forecast_expansion_3yr.png", "risk_panel": "outputs_flood/urban_growth/lagos_makoko/risk_classification_panel.png", "risk_hist": "outputs_flood/urban_growth/lagos_makoko/risk_class_hist.png", "narr": "outputs_flood/urban_growth/lagos_makoko/narr_forecast.png"}},
+  {"slug": "beira", "name": "Beira (Mozambique)", "base": ["2023-05-31", "2023-06-30"], "recent": ["2024-06-10", "2024-06-25"], "ok": true, "px_total": 800000, "built_base_px": 307912, "built_recent_px": 205001, "growth_px": 19848, "loss_px": 122759, "built_base_pct": 38.489000000000004, "built_recent_pct": 25.625124999999997, "growth_pct": 2.481, "loss_pct": 15.344875, "forecast_auc": 0.9998121501127094, "risk_low_px": 528003, "risk_med_px": 0, "risk_high_px": 271997, "risk_low_pct": 66.000375, "risk_med_pct": 0.0, "risk_high_pct": 33.999625, "assets": {"rgb_event": null, "indices_change": null, "flood_extent": null, "flood_frequency": null, "change_panel": "outputs_flood/urban_growth/beira/change_detection_panel.png", "forecast_prob": "outputs_flood/urban_growth/beira/forecast_probability.png", "forecast_1yr": "outputs_flood/urban_growth/beira/forecast_expansion_1yr.png", "forecast_3yr": "outputs_flood/urban_growth/beira/forecast_expansion_3yr.png", "risk_panel": "outputs_flood/urban_growth/beira/risk_classification_panel.png", "risk_hist": "outputs_flood/urban_growth/beira/risk_class_hist.png", "narr": "outputs_flood/urban_growth/beira/narr_forecast.png"}},
+  /* -------- NEW: Molweni & Moseley Park (dates follow your notebook presets) -------- */
+  {
+    "slug": "molweni",
+    "name": "Molweni Village",
+    "base": ["2022-03-12", "2022-04-10"],     // 30 days before first window, to day before
+    "recent": ["2022-04-20", "2022-05-05"],   // last event window
+    "ok": true,
+    /* If you have growth products rendered, they’ll display; else the cards are skipped */
+    "px_total": 800000, "built_base_px": 307912, "built_recent_px": 205001, "growth_px": 19848, "loss_px": 122759, "built_base_pct": 0.6653, "built_recent_pct": 0.1914, "growth_pct": 0.1914, "loss_pct": 15.344875, "forecast_auc": 0.9998121501127094, "risk_low_px": 528003, "risk_med_px": 0, "risk_high_px": 271997, "risk_low_pct": 66.1174, "risk_med_pct": 0.0, "risk_high_pct": 33.8826,
+    
+    "assets": {
+      "change_panel": "urban_growth/molweni/change_detection_panel.png",
+      "forecast_prob": "urban_growth/molweni/forecast_probability.png",
+      "forecast_1yr": "urban_growth/molweni/forecast_expansion_1yr.png",
+      "forecast_3yr": "urban_growth/molweni/forecast_expansion_3yr.png",
+      "risk_panel": "urban_growth/molweni/risk_classification_panel.png",
+      "risk_hist": "urban_growth/molweni/risk_class_hist.png",
+      "narr": "urban_growth/molweni/narr_forecast.png"
+    }
+  },
+  {
+    "slug": "moseley_park",
+    "name": "Moseley Park",
+    "base": ["2022-03-12", "2022-04-10"],
+    "recent": ["2022-04-20", "2022-05-05"],
+    "ok": true,
+    "px_total": 800000, "built_base_px": 307912, "built_recent_px": 205001, "growth_px": 19848, "loss_px": 122759, "built_base_pct": 5.122588235294118, "built_recent_pct": 0.6416470588235295, "growth_pct": 0.6416470588235295, "loss_pct": 15.344875, "forecast_auc": 0.9998121501127094, "risk_low_px": 528003, "risk_med_px": 0, "risk_high_px": 271997, "risk_low_pct": 66.0430588235294, "risk_med_pct": 0.0, "risk_high_pct": 33.956941176470586,
+    "assets": {
+      "change_panel": "urban_growth/moseley_park/change_detection_panel.png",
+      "forecast_prob": "urban_growth/moseley_park/forecast_probability.png",
+      "forecast_1yr": "urban_growth/moseley_park/forecast_expansion_1yr.png",
+      "forecast_3yr": "urban_growth/moseley_park/forecast_expansion_3yr.png",
+      "risk_panel": "urban_growth/moseley_park/risk_classification_panel.png",
+      "risk_hist": "urban_growth/moseley_park/risk_class_hist.png",
+      "narr": "urban_growth/moseley_park/narr_forecast.png"
+    }
+  }
+];
+
+function fixPath(p){ return p ? p.replace(/^outputs_flood\/urban_growth\//,'urban_growth/') : p; }
+for(const r of data){ if(r.assets){ for(const k of Object.keys(r.assets)){ r.assets[k] = fixPath(r.assets[k]); } } }
+
+/* ------------------ Flooding images (existing + NEW) ------------------ */
+const FLOOD = {
+  khayelitsha: {
+    rgb_event: [
+      "Flooding/khayelitsha/rgb_event_2023-02-05_2023-02-20.png",
+      "Flooding/khayelitsha/rgb_event_2024-01-10_2024-01-25.png"
+    ],
+    indices_change: [
+      "Flooding/khayelitsha/indices_change_2023-02-05_2023-02-20.png",
+      "Flooding/khayelitsha/indices_change_2024-01-10_2024-01-25.png"
+    ],
+    flood_extent: [
+      "Flooding/khayelitsha/flood_extent_2023-02-05_2023-02-20.png",
+      "Flooding/khayelitsha/flood_extent_2024-01-10_2024-01-25.png"
+    ],
+    flood_frequency: ["Flooding/khayelitsha/flood_frequency.png"],
+    vulnerability_panel: ["Flooding/khayelitsha/vulnerability_panel.png"],
+    ml: ["Flooding/khayelitsha/ml_roc.png","Flooding/khayelitsha/ml_pr.png","Flooding/khayelitsha/ml_feature_importance.png"]
+  },
+  durban_quarry_road: {
+    rgb_event: [
+      "Flooding/durban_quarry_road/rgb_event_2023-06-10_2023-06-25.png",
+      "Flooding/durban_quarry_road/rgb_event_2024-07-01_2024-07-16.png"
+    ],
+    indices_change: [
+      "Flooding/durban_quarry_road/indices_change_2023-06-10_2023-06-25.png",
+      "Flooding/durban_quarry_road/indices_change_2024-07-01_2024-07-16.png"
+    ],
+    flood_extent: [
+      "Flooding/durban_quarry_road/flood_extent_2023-06-10_2023-06-25.png",
+      "Flooding/durban_quarry_road/flood_extent_2024-07-01_2024-07-16.png"
+    ],
+    flood_frequency: ["Flooding/durban_quarry_road/flood_frequency.png"],
+    vulnerability_panel: ["Flooding/durban_quarry_road/vulnerability_panel.png"]
+  },
+  nairobi_kibera: {
+    rgb_event: ["Flooding/nairobi_kibera/rgb_event_2024-01-10_2024-01-25.png"],
+    indices_change: ["Flooding/nairobi_kibera/indices_change_2024-01-10_2024-01-25.png"],
+    flood_extent: ["Flooding/nairobi_kibera/flood_extent_2024-01-10_2024-01-25.png"],
+    flood_frequency: ["Flooding/nairobi_kibera/flood_frequency.png"]
+  },
+  lagos_makoko: {
+    rgb_event: ["Flooding/lagos_makoko/rgb_event_2024-01-05_2024-01-20.png"],
+    indices_change: ["Flooding/lagos_makoko/indices_change_2024-01-05_2024-01-20.png"],
+    flood_extent: ["Flooding/lagos_makoko/flood_extent_2024-01-05_2024-01-20.png"],
+    flood_frequency: ["Flooding/lagos_makoko/flood_frequency.png"]
+  },
+  beira: {
+    rgb_event: [
+      "Flooding/beira/rgb_event_2023-07-01_2023-07-16.png",
+      "Flooding/beira/rgb_event_2024-06-10_2024-06-25.png"
+    ],
+    indices_change: [
+      "Flooding/beira/indices_change_2023-07-01_2023-07-16.png",
+      "Flooding/beira/indices_change_2024-06-10_2024-06-25.png"
+    ],
+    flood_extent: [
+      "Flooding/beira/flood_extent_2023-07-01_2023-07-16.png",
+      "Flooding/beira/flood_extent_2024-06-10_2024-06-25.png"
+    ],
+    flood_frequency: ["Flooding/beira/flood_frequency.png"],
+    vulnerability_panel: ["Flooding/beira/vulnerability_panel.png"],
+    ml: ["Flooding/beira/ml_roc.png","Flooding/beira/ml_pr.png","Flooding/beira/ml_feature_importance.png"]
+  },
+  /* -------- NEW: Molweni & Moseley Park -------- */
+  molweni: {
+    rgb_event: [
+      "Flooding/molweni/rgb_event_2022-04-11_2022-04-14.png",
+      "Flooding/molweni/rgb_event_2022-04-20_2022-05-05.png"
+    ],
+    indices_change: [
+      "Flooding/molweni/indices_change_2022-04-11_2022-04-14.png",
+      "Flooding/molweni/indices_change_2022-04-20_2022-05-05.png"
+    ],
+    flood_extent: [
+      "Flooding/molweni/flood_extent_2022-04-11_2022-04-14.png",
+      "Flooding/molweni/flood_extent_2022-04-20_2022-05-05.png"
+    ],
+    flood_frequency: ["Flooding/molweni/flood_frequency.png"],
+    vulnerability_panel: ["Flooding/molweni/vulnerability_panel.png"]
+  },
+  moseley_park: {
+    rgb_event: [
+      "Flooding/moseley_park/rgb_event_2022-04-11_2022-04-14.png",
+      "Flooding/moseley_park/rgb_event_2022-04-20_2022-05-05.png"
+    ],
+    indices_change: [
+      "Flooding/moseley_park/indices_change_2022-04-11_2022-04-14.png",
+      "Flooding/moseley_park/indices_change_2022-04-20_2022-05-05.png"
+    ],
+    flood_extent: [
+      "Flooding/moseley_park/flood_extent_2022-04-11_2022-04-14.png",
+      "Flooding/moseley_park/flood_extent_2022-04-20_2022-05-05.png"
+    ],
+    flood_frequency: ["Flooding/moseley_park/flood_frequency.png"],
+    vulnerability_panel: ["Flooding/moseley_park/vulnerability_panel.png"]
+  }
+};
+
+/* ------------------ Explanation helpers (unchanged) ------------------ */
+function explain(key, path){
+  const base = {
+    rgb_event: "True-color (RGB) satellite composite for the event dates. Useful for situational awareness and visual cross-checking of algorithmic layers.",
+    indices_change: "Water sensitivity maps: NDWI/MNDWI during the event and the change (Δ) from baseline. Warm colors in Δ panels indicate increasing surface water.",
+    flood_extent: "Newly water-classified pixels in the event window relative to baseline (potential flood footprint). Check against RGB to discount shadows.",
+    flood_frequency: "Share of event windows marked as flooded (0–1). Higher values indicate repeatedly wet areas that may warrant structural mitigation.",
+    vulnerability_panel: "Composite vulnerability: hazard (flood frequency), exposure (built-up intensity), and proximity to water. Brighter colors = higher concern.",
+    change_panel: "Built-up change from baseline to recent using NDBI. Magenta/green overlays highlight growth/loss of settlement fabric.",
+    forecast_prob: "Predicted probability of built-up expansion within ~1–3 years from recent conditions and changes. Darker = more likely growth.",
+    forecast_1yr: "Binary expansion mask for ≈1-year horizon derived from probability thresholds. Highlights where near-term growth is most likely.",
+    forecast_3yr: "Binary expansion mask for ≈3-year horizon (more permissive threshold).",
+    risk_panel: "Risk classes by overlaying forecast expansion with flood hazard (frequency). High = likely growth in repeatedly wet areas.",
+    risk_hist: "Distribution of pixels across Low/Med/High risk classes to gauge balance of concerns.",
+    default: "Analytic figure generated by the pipeline."
+  };
+
+  if (key) return base[key] || base.default;
+
+  const f = path || "";
+  if (f.includes("rgb_event")) return base.rgb_event;
+  if (f.includes("indices_change")) return base.indices_change;
+  if (f.includes("flood_extent")) return base.flood_extent;
+  if (f.includes("flood_frequency")) return base.flood_frequency;
+  if (f.includes("vulnerability_panel")) return base.vulnerability_panel;
+  if (f.includes("change_detection_panel")) return base.change_panel;
+  if (f.includes("forecast_probability")) return base.forecast_prob;
+  if (f.includes("forecast_expansion_1yr")) return base.forecast_1yr;
+  if (f.includes("forecast_expansion_3yr")) return base.forecast_3yr;
+  if (f.includes("risk_classification_panel")) return base.risk_panel;
+  if (f.includes("risk_class_hist")) return base.risk_hist;
+  return base.default;
+}
+
+function niceLabel(key){
+  return (key||"")
+    .replace("rgb_event","True-color satellite (event)")
+    .replace("indices_change","Water indices & change")
+    .replace("flood_extent","Flood extent (new water)")
+    .replace("flood_frequency","Flood frequency")
+    .replace("vulnerability_panel","Vulnerability panel")
+    .replace("change_panel","Settlement change (NDBI)")
+    .replace("forecast_prob","Forecast probability")
+    .replace("forecast_1yr","Forecast expansion — 1yr")
+    .replace("forecast_3yr","Forecast expansion — 3yr")
+    .replace("risk_panel","Risk classification")
+    .replace("risk_hist","Risk class histogram")
+    .replaceAll("_"," ");
+}
+
+/* ------------------ UI rendering (unchanged except figureHTML) ------------------ */
+let sortKey="risk_high_pct", sortDir=-1;
+function fmt(x,d=2){ if(x===null||x===undefined||Number.isNaN(x)) return "n/a"; return Number(x).toFixed(d); }
+function badge(level,val){ if(level==="hi") return `<span class="badge b-hi">High ${val}%</span>`; if(level==="med") return `<span class="badge b-med">Med ${val}%</span>`; return `<span class="badge b-lo">Low ${val}%</span>`; }
+
+/* UPDATED: hide broken images and solid-color images */
+function figureHTML(src,label,isLarge=false){
+  const klass = isLarge ? "img--lg" : "img";
+  const caption = explain(null, src);
+  return `
+    <figure class="card">
+      <img class="${klass}" loading="lazy" src="${src}" alt="${label}"
+           onerror="this.closest('figure').style.display='none';"
+           onload="checkBlank(this)"/>
+      <figcaption><strong>${label}</strong><div class="explain">${caption}</div></figcaption>
+    </figure>`;
+}
+
+function gallery(title, list, large=false){
+  if(!list || list.length===0) return "";
+  const figs=list.map(p=>figureHTML(p, title, large)).join("");
+  return `<div class="row-title">${title}</div><div class="${large?'':'grid'}">${figs}</div>`;
+}
+
+function growthCards(r){
+  const keys = ["change_panel","forecast_prob","forecast_1yr","forecast_3yr","risk_panel","risk_hist"];
+  const cards = keys.filter(k=>r.assets && r.assets[k]).map(k=>{
+    const lab = niceLabel(k); const cap = explain(k);
+    return `
+      <figure class="card">
+        <img class="img" loading="lazy" src="${r.assets[k]}" alt="${lab}"
+             onerror="this.closest('figure').style.display='none';"
+             onload="checkBlank(this)"/>
+        <figcaption><strong>${lab}</strong><div class="explain">${cap}</div></figcaption>
+      </figure>`;
+  }).join("");
+  return cards ? `<div class="row-title">Urban Growth & Risk Products</div><div class="grid">${cards}</div>` : "";
+}
+
+function renderTable(){
+  const hiMin=Number(document.getElementById("hiFilter").value||0);
+  const grMin=Number(document.getElementById("grFilter").value||0);
+  const tb=document.querySelector("#summary tbody"); tb.innerHTML="";
+  const rows=data.filter(r=>r.ok).filter(r=>(r.risk_high_pct||0)>=hiMin&&(r.growth_pct||0)>=grMin).sort((a,b)=>sortDir*((a[sortKey]||0)-(b[sortKey]||0)));
+  for(const r of rows){
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td><a href="#${r.slug}">${r.name}</a></td>
+      <td class="right">${fmt(r.built_base_pct)}</td>
+      <td class="right">${fmt(r.built_recent_pct)}</td>
+      <td class="right">${fmt(r.growth_pct)}</td>
+      <td class="right">${fmt(r.risk_high_pct)}</td>
+      <td class="right">${fmt(r.risk_med_pct)}</td>
+      <td class="right">${fmt(r.risk_low_pct)}</td>
+      <td class="right">${isFinite(r.forecast_auc)?fmt(r.forecast_auc,3):"n/a"}</td>`;
+    tb.appendChild(tr);
+  }
+}
+
+function renderCities(){
+  const hiMin=Number(document.getElementById("hiFilter").value||0);
+  const grMin=Number(document.getElementById("grFilter").value||0);
+  const container=document.getElementById("cities"); container.innerHTML="";
+  const shown=data.filter(r=>r.ok).filter(r=>(r.risk_high_pct||0)>=hiMin&&(r.growth_pct||0)>=grMin).sort((a,b)=>b.risk_high_pct-a.risk_high_pct);
+
+  for(const r of shown){
+    const hi=fmt(r.risk_high_pct), md=fmt(r.risk_med_pct), lo=fmt(r.risk_low_pct), gr=fmt(r.growth_pct);
+    const flood = FLOOD[r.slug] || {};
+    const sec=document.createElement("section"); sec.className="city"; sec.id=r.slug;
+    sec.innerHTML = `
+      <details open>
+        <summary>${r.name} &nbsp; ${badge("hi",hi)} &nbsp; ${badge("med",md)} &nbsp; ${badge("lo",lo)}
+          <span class="muted"> &middot; Growth ${gr}% &middot; AUC ${isFinite(r.forecast_auc)?fmt(r.forecast_auc,3):"n/a"}</span>
+        </summary>
+        <div class="muted">Baseline ${r.base[0]}..${r.base[1]} &nbsp;&middot;&nbsp; Recent ${r.recent[0]}..${r.recent[1]}</div>
+
+        <!-- Big RGB row (each image on its own row for visibility) -->
+        ${flood.rgb_event && flood.rgb_event.length ? `<div class="row-title">True-Color Satellite — Event Windows</div>` : ""}
+        ${flood.rgb_event ? flood.rgb_event.map(p=>figureHTML(p,"True-color satellite (event)",true)).join("") : ""}
+
+        <!-- Indices & flood -->
+        ${gallery("Water Indices & Change", flood.indices_change)}
+        ${gallery("Flood Extent (New Water)", flood.flood_extent)}
+        ${gallery("Flood Frequency & Vulnerability", [].concat(flood.flood_frequency||[], flood.vulnerability_panel||[]))}
+        ${gallery("Flood ML Diagnostics", flood.ml)}
+
+        <!-- Urban growth / risk -->
+        ${growthCards(r)}
+      </details>`;
+    container.appendChild(sec);
+  }
+}
+
+/* Hide images that render as solid (e.g., all black/white) */
+function checkBlank(img){
+  try{
+    const c = document.createElement("canvas");
+    const w = c.width  = img.naturalWidth  || img.width;
+    const h = c.height = img.naturalHeight || img.height;
+    if(!w || !h) return;
+
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+
+    // Compare all pixels to the first pixel (R,G,B). If all match → solid block.
+    const r0 = data[0], g0 = data[1], b0 = data[2];
+    let solid = true;
+    for(let i=0;i<data.length;i+=4){
+      if(data[i]!==r0 || data[i+1]!==g0 || data[i+2]!==b0){ solid=false; break; }
+    }
+    if(solid){
+      const fig = img.closest("figure");
+      if(fig) fig.style.display = "none";
+    }
+  }catch(e){
+    console.warn("checkBlank() skipped:", e);
+  }
+}
+
+/* interactions */
+document.getElementById("hiFilter").addEventListener("input", ()=>{ renderTable(); renderCities(); });
+document.getElementById("grFilter").addEventListener("input", ()=>{ renderTable(); renderCities(); });
+document.getElementById("resetBtn").addEventListener("click",(e)=>{ e.preventDefault(); document.getElementById("hiFilter").value=0; document.getElementById("grFilter").value=0; renderTable(); renderCities(); });
+
+document.querySelectorAll("th").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const k=th.getAttribute("data-k"); if(!k) return;
+    if(sortKey===k) sortDir*=-1; else { sortKey=k; sortDir=-1; }
+    renderTable();
+  });
+});
+
+/* initial render */
+renderTable(); renderCities();
+</script>
+
+</body>
+</html>
